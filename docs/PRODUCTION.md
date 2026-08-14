@@ -175,25 +175,29 @@ ADMIN_USERNAME=admin NEW_ADMIN_PASSWORD='GANTI_DENGAN_PASSWORD_KUAT' npx tsx -e 
 import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
-const username = process.env.ADMIN_USERNAME;
-const password = process.env.NEW_ADMIN_PASSWORD;
-if (!username || !password || password.length < 12) {
-  throw new Error("Username wajib diisi dan password minimal 12 karakter.");
+async function main() {
+  const username = process.env.ADMIN_USERNAME;
+  const password = process.env.NEW_ADMIN_PASSWORD;
+  if (!username || !password || password.length < 12) {
+    throw new Error("Username wajib diisi dan password minimal 12 karakter.");
+  }
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user = await prisma.user.upsert({
+    where: { username },
+    update: { passwordHash, role: UserRole.ADMIN, isActive: true, teamId: null },
+    create: {
+      name: "Administrator",
+      username,
+      passwordHash,
+      role: UserRole.ADMIN,
+      isActive: true,
+    },
+  });
+  console.log("Admin dipulihkan:", user.username);
 }
-const passwordHash = await bcrypt.hash(password, 12);
-const user = await prisma.user.upsert({
-  where: { username },
-  update: { passwordHash, role: UserRole.ADMIN, isActive: true, teamId: null },
-  create: {
-    name: "Administrator",
-    username,
-    passwordHash,
-    role: UserRole.ADMIN,
-    isActive: true,
-  },
-});
-console.log("Admin dipulihkan:", user.username);
-await prisma.$disconnect();
+main()
+  .catch((error) => { console.error(error); process.exitCode = 1; })
+  .finally(() => prisma.$disconnect());
 '
 ```
 
