@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  FIELD_OFFICER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ResidentStatus {
+  UNVERIFIED
+  VERIFIED
+  NEEDS_CORRECTION
+  INACTIVE
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  username     String     @unique
+  passwordHash String
+  role         UserRole
+  teamId       String?
+  isActive     Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  team         Team?      @relation(fields: [teamId], references: [id])
+  residents    Resident[]
+  auditLogs    AuditLog[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
+model Resident {
+  id          String         @id @default(cuid())
+  nik         String         @unique @db.Char(16)
+  fullName    String
+  gender      Gender
+  birthDate   DateTime?
+  address     String
+  rt          String         @db.VarChar(3)
+  rw          String         @db.VarChar(3)
+  village     String?
+  district    String?
+  phoneNumber String?
+  status      ResidentStatus @default(UNVERIFIED)
+  note        String?
+  createdById String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  inactiveAt  DateTime?
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([fullName])
+  @@index([rt, rw])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

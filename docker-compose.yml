@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: sipedaw-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sipedaw
+    ports:
+      - "5432:5432"
+    volumes:
+      - sipedaw_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  sipedaw_postgres_data:
