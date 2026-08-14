@@ -4,17 +4,36 @@ import { requireSession } from "@/lib/auth";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { residentSchema } from "@/validation/resident";
 import { writeAudit } from "@/lib/audit";
+import { hashNik, nikStorage } from "@/lib/nik-crypto";
+import { csrfError } from "@/lib/request-security";
+
+export async function GET() {
+  try {
+    const session = await requireSession();
+    if (session.role !== "FIELD_OFFICER") return apiError("Akses ditolak.", 403, "FORBIDDEN");
+    return apiSuccess(await prisma.resident.findMany({
+      where: { createdById: session.id, status: { not: "INACTIVE" } },
+      select: { id:true, nikLastFour:true, fullName:true, address:true, rt:true, rw:true, status:true },
+      orderBy: { createdAt: "desc" }, take: 200,
+    }));
+  } catch { return apiError("Akses ditolak.", 403, "FORBIDDEN"); }
+}
 
 export async function POST(request: Request) {
   try {
+    const rejected = csrfError(request); if (rejected) return rejected;
     const session = await requireSession();
     const parsed = residentSchema.safeParse(await request.json());
     if (!parsed.success) return apiError("Data belum valid.", 400, "VALIDATION_ERROR", parsed.error.flatten());
 
     const data = parsed.data;
+    const { nik, ...residentData } = data;
+    const duplicate = await prisma.resident.findFirst({ where: { OR: [{ nikHash: hashNik(nik) }, { legacyNik: nik }] }, select: { id: true } });
+    if (duplicate) return apiError("NIK sudah terdaftar.", 409, "NIK_ALREADY_EXISTS");
     const resident = await prisma.resident.create({
       data: {
-        ...data,
+        ...residentData,
+        ...nikStorage(nik),
         birthDate: data.birthDate ? new Date(`${data.birthDate}T00:00:00.000Z`) : null,
         village: data.village || null,
         district: data.district || null,

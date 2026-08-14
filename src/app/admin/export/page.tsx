@@ -1,0 +1,1 @@
+import{requireAdmin}from"@/lib/auth";import{AppHeader}from"@/components/app-header";import{ExportPanel}from"./export-panel";export default async function ExportPage(){const user=await requireAdmin();return <><AppHeader user={user}/><main className="container"><h1>Export Data Warga</h1><ExportPanel/></main></>}

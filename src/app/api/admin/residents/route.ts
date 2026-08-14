@@ -9,10 +9,12 @@ export async function GET(request: Request) {
     const page = Math.max(Number(searchParams.get("page") ?? 1), 1);
     const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 20), 1), 100);
     const search = searchParams.get("search")?.trim();
+    const status = searchParams.get("status");
 
-    const where = search
-      ? { OR: [{ fullName: { contains: search, mode: "insensitive" as const } }, { nik: { contains: search } }] }
-      : {};
+    const where = {
+      ...(search ? { fullName: { contains: search, mode: "insensitive" as const } } : {}),
+      ...(status ? { status: status as "UNVERIFIED" | "VERIFIED" | "NEEDS_CORRECTION" | "INACTIVE" } : {}),
+    };
 
     const [items, total] = await Promise.all([
       prisma.resident.findMany({
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
         take: limit,
         select: {
           id: true,
-          nik: true,
+          nikLastFour: true,
           fullName: true,
           rt: true,
           rw: true,

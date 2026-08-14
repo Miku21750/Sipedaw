@@ -15,3 +15,13 @@ export const residentSchema = z.object({
   phoneNumber: z.string().regex(/^08\d{8,13}$/).optional().or(z.literal("")),
   note: z.string().trim().max(500).optional().or(z.literal("")),
 });
+
+export const residentUpdateSchema = residentSchema.extend({
+  status: z.enum(["UNVERIFIED", "VERIFIED", "NEEDS_CORRECTION", "INACTIVE"]),
+});
+
+export const correctionSchema = z.object({
+  residentId: z.string().min(1),
+  reason: z.string().trim().min(5).max(500),
+  proposedData: residentSchema.omit({ nik: true }).partial().refine((value) => Object.keys(value).length > 0, "Minimal satu perubahan diperlukan."),
+});

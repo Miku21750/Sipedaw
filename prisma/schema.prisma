@@ -24,21 +24,30 @@ enum ResidentStatus {
   INACTIVE
 }
 
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id           String     @id @default(cuid())
+  id           String    @id @default(cuid())
   name         String
-  username     String     @unique
+  username     String    @unique
   passwordHash String
   role         UserRole
   teamId       String?
-  isActive     Boolean    @default(true)
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  team         Team?      @relation(fields: [teamId], references: [id])
-  residents    Resident[]
-  auditLogs    AuditLog[]
+  team                Team?               @relation(fields: [teamId], references: [id])
+  residents           Resident[]
+  corrections         CorrectionRequest[]
+  reviewedCorrections CorrectionRequest[] @relation("CorrectionReviewer")
+  exportLogs          ExportLog[]
+  auditLogs           AuditLog[]
 }
 
 model Team {
@@ -52,29 +61,68 @@ model Team {
 }
 
 model Resident {
-  id          String         @id @default(cuid())
-  nik         String         @unique @db.Char(16)
-  fullName    String
-  gender      Gender
-  birthDate   DateTime?
-  address     String
-  rt          String         @db.VarChar(3)
-  rw          String         @db.VarChar(3)
-  village     String?
-  district    String?
-  phoneNumber String?
-  status      ResidentStatus @default(UNVERIFIED)
-  note        String?
-  createdById String
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  inactiveAt  DateTime?
+  id           String         @id @default(cuid())
+  // legacyNik hanya untuk migrasi data lama. Jalankan db:encrypt-existing lalu nilainya dikosongkan.
+  legacyNik    String?        @unique @map("nik") @db.Char(16)
+  nikEncrypted String?
+  nikHash      String?        @unique @db.Char(64)
+  nikLastFour  String         @default("????") @db.Char(4)
+  fullName     String
+  gender       Gender
+  birthDate    DateTime?
+  address      String
+  rt           String         @db.VarChar(3)
+  rw           String         @db.VarChar(3)
+  village      String?
+  district     String?
+  phoneNumber  String?
+  status       ResidentStatus @default(UNVERIFIED)
+  note         String?
+  createdById  String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  inactiveAt   DateTime?
 
-  createdBy User @relation(fields: [createdById], references: [id])
+  createdBy          User                @relation(fields: [createdById], references: [id])
+  correctionRequests CorrectionRequest[]
 
   @@index([fullName])
   @@index([rt, rw])
   @@index([status])
+  @@index([createdAt])
+}
+
+model CorrectionRequest {
+  id            String           @id @default(cuid())
+  residentId    String
+  requestedById String
+  proposedData  Json
+  reason        String
+  status        CorrectionStatus @default(PENDING)
+  reviewNote    String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  resident    Resident @relation(fields: [residentId], references: [id])
+  requestedBy User     @relation(fields: [requestedById], references: [id])
+  reviewedBy  User?    @relation("CorrectionReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([residentId])
+}
+
+model ExportLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  format      String   @default("XLSX")
+  filters     Json?
+  recordCount Int
+  createdAt   DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
   @@index([createdAt])
 }
 

@@ -1,0 +1,1 @@
+import{requireAdmin}from"@/lib/auth";import{AppHeader}from"@/components/app-header";import{CorrectionManager}from"./correction-manager";export default async function CorrectionsPage(){const user=await requireAdmin();return <><AppHeader user={user}/><main className="container"><h1>Review Koreksi</h1><CorrectionManager/></main></>}

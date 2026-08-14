@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import type { UserRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = "sipedaw_session";
 const secret = new TextEncoder().encode(
@@ -25,7 +26,7 @@ export async function createSession(user: SessionUser) {
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     maxAge: 60 * 60 * 8,
   });
@@ -52,7 +53,12 @@ export async function getSession(): Promise<SessionUser | null> {
 export async function requireSession() {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHORIZED");
-  return session;
+  const user = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { id: true, name: true, username: true, role: true, isActive: true },
+  });
+  if (!user?.isActive) throw new Error("UNAUTHORIZED");
+  return { id: user.id, name: user.name, username: user.username, role: user.role };
 }
 
 export async function requireAdmin() {
