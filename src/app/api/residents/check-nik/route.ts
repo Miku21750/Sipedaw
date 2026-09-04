@@ -5,6 +5,7 @@ import { nikSchema } from "@/validation/resident";
 import { hashNik } from "@/lib/nik-crypto";
 import { clientIp, csrfError } from "@/lib/request-security";
 import { rateLimit } from "@/lib/rate-limit";
+import { inferNikBirthDate, NikParseError, parseNik } from "@/lib/nik-parser";
 
 export async function POST(request: Request) {
   try {
@@ -15,9 +16,20 @@ export async function POST(request: Request) {
     const parsed = nikSchema.safeParse((await request.json()).nik);
     if (!parsed.success) return apiError(parsed.error.issues[0]?.message ?? "NIK tidak valid.", 400, "VALIDATION_ERROR");
 
+    const nikData = parseNik(parsed.data);
     const exists = await prisma.resident.findFirst({ where: { OR: [{ nikHash: hashNik(parsed.data) }, { legacyNik: parsed.data }] }, select: { id: true } });
-    return apiSuccess({ exists: Boolean(exists) }, exists ? "NIK sudah terdaftar." : "NIK belum terdaftar.");
-  } catch {
+    return apiSuccess({
+      exists: Boolean(exists),
+      parsed: {
+        gender: nikData.gender,
+        birthDate: inferNikBirthDate(nikData).toISOString().slice(0, 10),
+        provinceCode: nikData.provinceCode,
+        regencyCode: nikData.regencyCode,
+        districtCode: nikData.districtCode,
+      },
+    }, exists ? "NIK sudah terdaftar." : "NIK belum terdaftar.");
+  } catch (error) {
+    if (error instanceof NikParseError) return apiError(error.message, 400, "INVALID_NIK_PATTERN");
     return apiError("Sesi tidak valid.", 401, "UNAUTHORIZED");
   }
 }

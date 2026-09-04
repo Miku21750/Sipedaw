@@ -6,6 +6,7 @@ import { residentUpdateSchema } from "@/validation/resident";
 import { hashNik, nikStorage, readableNik } from "@/lib/nik-crypto";
 import { csrfError } from "@/lib/request-security";
 import { writeAudit } from "@/lib/audit";
+import { inferNikBirthDate, NikParseError, parseNik } from "@/lib/nik-parser";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,12 +24,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const admin = await requireAdmin(); const { id } = await params;
     const parsed = residentUpdateSchema.safeParse(await request.json());
     if (!parsed.success) return apiError("Data belum valid.", 400, "VALIDATION_ERROR", parsed.error.flatten());
-    const { nik, birthDate, status, ...data } = parsed.data;
+    const { nik, birthDate: _birthDate, gender: _gender, status, ...data } = parsed.data;
+    const nikData = parseNik(nik);
     const duplicate = await prisma.resident.findFirst({ where: { id:{not:id}, OR:[{nikHash:hashNik(nik)},{legacyNik:nik}] }, select:{id:true} });
     if (duplicate) return apiError("NIK sudah terdaftar.",409,"NIK_ALREADY_EXISTS");
     const resident = await prisma.resident.update({ where: { id }, data: {
       ...data, ...nikStorage(nik), status,
-      birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`) : null,
+      gender: nikData.gender,
+      birthDate: inferNikBirthDate(nikData),
+      provinceCode: nikData.provinceCode,
+      regencyCode: nikData.regencyCode,
+      districtCode: nikData.districtCode,
       village:data.village||null,district:data.district||null,phoneNumber:data.phoneNumber||null,note:data.note||null,
       inactiveAt: status === "INACTIVE" ? new Date() : null,
     }});
@@ -36,6 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return apiSuccess({ id: resident.id }, "Data warga diperbarui.");
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return apiError("NIK sudah terdaftar.",409,"NIK_ALREADY_EXISTS");
+    if (error instanceof NikParseError) return apiError(error.message, 400, "INVALID_NIK_PATTERN");
     return apiError("Data warga gagal diperbarui.",500,"INTERNAL_ERROR");
   }
 }

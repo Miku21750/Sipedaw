@@ -70,11 +70,14 @@ model Resident {
   fullName     String
   gender       Gender
   birthDate    DateTime?
-  address      String
+  address      String?
   rt           String         @db.VarChar(3)
   rw           String         @db.VarChar(3)
   village      String?
   district     String?
+  provinceCode String?        @db.Char(2)
+  regencyCode  String?        @db.Char(4)
+  districtCode String?        @db.Char(6)
   phoneNumber  String?
   status       ResidentStatus @default(UNVERIFIED)
   note         String?
@@ -88,6 +91,7 @@ model Resident {
 
   @@index([fullName])
   @@index([rt, rw])
+  @@index([districtCode])
   @@index([status])
   @@index([createdAt])
 }

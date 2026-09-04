@@ -6,6 +6,7 @@ import { residentSchema } from "@/validation/resident";
 import { writeAudit } from "@/lib/audit";
 import { hashNik, nikStorage } from "@/lib/nik-crypto";
 import { csrfError } from "@/lib/request-security";
+import { inferNikBirthDate, NikParseError, parseNik } from "@/lib/nik-parser";
 
 export async function GET() {
   try {
@@ -28,15 +29,19 @@ export async function POST(request: Request) {
 
     const data = parsed.data;
     const { nik, ...residentData } = data;
+    const nikData = parseNik(nik);
     const duplicate = await prisma.resident.findFirst({ where: { OR: [{ nikHash: hashNik(nik) }, { legacyNik: nik }] }, select: { id: true } });
     if (duplicate) return apiError("NIK sudah terdaftar.", 409, "NIK_ALREADY_EXISTS");
     const resident = await prisma.resident.create({
       data: {
         ...residentData,
         ...nikStorage(nik),
-        birthDate: data.birthDate ? new Date(`${data.birthDate}T00:00:00.000Z`) : null,
-        village: data.village || null,
-        district: data.district || null,
+        gender: nikData.gender,
+        birthDate: inferNikBirthDate(nikData),
+        address: null,
+        provinceCode: nikData.provinceCode,
+        regencyCode: nikData.regencyCode,
+        districtCode: nikData.districtCode,
         phoneNumber: data.phoneNumber || null,
         note: data.note || null,
         createdById: session.id,
@@ -56,6 +61,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return apiError("NIK sudah terdaftar.", 409, "NIK_ALREADY_EXISTS");
+    }
+    if (error instanceof NikParseError) {
+      return apiError(error.message, 400, "INVALID_NIK_PATTERN");
     }
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
       return apiError("Sesi tidak valid.", 401, "UNAUTHORIZED");
