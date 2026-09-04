@@ -14,7 +14,7 @@ export async function GET() {
     if (session.role !== "FIELD_OFFICER") return apiError("Akses ditolak.", 403, "FORBIDDEN");
     return apiSuccess(await prisma.resident.findMany({
       where: { createdById: session.id, status: { not: "INACTIVE" } },
-      select: { id:true, nikLastFour:true, fullName:true, address:true, rt:true, rw:true, status:true },
+      select: { id:true, nikLastFour:true, fullName:true, address:true, rt:true, rw:true, status:true, createdAt:true },
       orderBy: { createdAt: "desc" }, take: 200,
     }));
   } catch { return apiError("Akses ditolak.", 403, "FORBIDDEN"); }
