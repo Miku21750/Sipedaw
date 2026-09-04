@@ -60,7 +60,7 @@ npm run lint
 npm run build
 ```
 
-Prosedur backup dan uji restore tersedia di [`docs/BACKUP.md`](docs/BACKUP.md).
+Panduan deployment, update, rollback, dan pengelolaan akun tersedia di [`docs/PRODUCTION.md`](docs/PRODUCTION.md). Prosedur backup dan uji restore tersedia di [`docs/BACKUP.md`](docs/BACKUP.md).
 
 ## Struktur utama
 
