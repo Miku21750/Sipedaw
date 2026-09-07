@@ -1,4 +1,6 @@
 "use client";
+import { DataTable } from "@/components/data-table";
+
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Resident = {
@@ -32,5 +34,11 @@ export function ResidentEntryForm(){
   <label>Nomor HP <span className="muted">(opsional)</span><input name="phoneNumber" inputMode="tel" placeholder="08..."/></label><label>Catatan <span className="muted">(opsional)</span><input name="note"/></label>
   <button className="full" disabled={loading}>{loading?"Menyimpan...":"Simpan data"}</button>
  </form>}
- </div><div className="card"><h2>Data warga yang saya input</h2><p className="muted">Tabel ini hanya menampilkan data yang Anda masukkan.</p>{listError&&<div className="alert">{listError}</div>}<div className="table-wrap"><table><thead><tr><th>Waktu input</th><th>NIK</th><th>Nama</th><th>RT/RW</th><th>Status</th></tr></thead><tbody>{residents.map(r=><tr key={r.id}><td>{new Date(r.createdAt).toLocaleString("id-ID")}</td><td>************{r.nikLastFour}</td><td>{r.fullName}</td><td>{r.rt}/{r.rw}</td><td><span className="badge">{statusLabels[r.status]||r.status}</span></td></tr>)}{!residents.length&&!listError&&<tr><td colSpan={5} className="muted">Belum ada data yang Anda input.</td></tr>}</tbody></table></div></div></div>;
+ </div><div className="card"><h2>Data warga yang saya input</h2><p className="muted">Tabel ini hanya menampilkan data yang Anda masukkan.</p>{listError&&<div className="alert">{listError}</div>}<DataTable rows={residents} columns={[
+ {key:"time",label:"Waktu input",value:r=>r.createdAt,render:r=>new Date(r.createdAt).toLocaleString("id-ID")},
+ {key:"nik",label:"NIK",value:r=>r.nikLastFour,render:r=>"************"+r.nikLastFour},
+ {key:"name",label:"Nama",value:r=>r.fullName},
+ {key:"rt",label:"RT/RW",value:r=>r.rt+"/"+r.rw},
+ {key:"status",label:"Status",value:r=>statusLabels[r.status]||r.status,render:r=><span className="badge">{statusLabels[r.status]||r.status}</span>}
+ ]}/></div></div>;
 }

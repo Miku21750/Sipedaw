@@ -15,7 +15,7 @@ export async function GET() {
     return apiSuccess(await prisma.resident.findMany({
       where: { createdById: session.id, status: { not: "INACTIVE" } },
       select: { id:true, nikLastFour:true, fullName:true, address:true, rt:true, rw:true, status:true, createdAt:true },
-      orderBy: { createdAt: "desc" }, take: 200,
+      orderBy: { createdAt: "desc" },
     }));
   } catch { return apiError("Akses ditolak.", 403, "FORBIDDEN"); }
 }
